@@ -1,0 +1,6 @@
+"__pycache__/" 
+"*.pyc" 
+".env" 
+"vendor/" 
+".DS_Store" 
+".vscode/" 
