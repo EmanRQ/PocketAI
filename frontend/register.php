@@ -23,23 +23,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
 
-        $conn->beginTransaction();
 
-        // 1. Simpan user
+        $conn->beginTransaction();
+   
         $stmtUser = $conn->prepare("INSERT INTO users (fullname, email, password) VALUES (:fullname, :email, :password)");
         $stmtUser->execute([':fullname' => $fullname, ':email' => $email, ':password' => $hashedPassword]);
         $newUserId = $conn->lastInsertId();
 
-        // 2. Simpan financials asal (Default State)
         $stmtFin = $conn->prepare("INSERT INTO financials (user_id, monthly_allowance, current_balance) VALUES (:uid, :allow, :bal)");
         $stmtFin->execute([':uid' => $newUserId, ':allow' => $allowance, ':bal' => $allowance]);
 
-        // 3. Simpan transaksi permulaan
-        $todayDate = date('d/m/Y');
+        $todayDate = date('Y-m-d'); 
         $stmtTx = $conn->prepare("INSERT INTO transactions (user_id, title, amount, type, date_created) VALUES (:uid, 'Elaun Bulanan Mula Setup', :allow, 'income', :dt)");
         $stmtTx->execute([':uid' => $newUserId, ':allow' => $allowance, ':dt' => $todayDate]);
 
-        // 4. Tambah senarai Daily Quests Asal
         $quests = ["Menabung RM5 Hari Ini", "Log Masuk Pocket AI", "Selesaikan Ring Keperluan"];
         $stmtQ = $conn->prepare("INSERT INTO daily_quests (user_id, quest_name) VALUES (:uid, :qname)");
         foreach ($quests as $q) {
@@ -48,8 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $conn->commit();
         echo json_encode(["status" => "success", "message" => "Akaun berjaya dicipta!"]);
+
     } catch (Exception $e) {
-        $conn->rollBack();
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
+
         echo json_encode(["status" => "error", "message" => "Pendaftaran gagal: " . $e->getMessage()]);
     }
 }

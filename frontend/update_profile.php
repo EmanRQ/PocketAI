@@ -8,22 +8,29 @@ if (!isset($_SESSION['user_id'])) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $userId = $_SESSION['user_id'];
-    $newUsername = $_POST['username'];
+    $newUsername = $_POST['fullname'];
     $newPassword = $_POST['password'];
 
     try {
         if (!empty($newPassword)) {
             // Jika tukar password, hash password baru
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("UPDATE users SET username = :username, password = :password WHERE id = :uid");
-            $stmt->execute([':username' => $newUsername, ':password' => $hashedPassword, ':uid' => $userId]);
+            $stmt = $conn->prepare("UPDATE users SET fullname = :fullname, password = :password WHERE id = :uid");
+            
+            $stmt->execute([
+                ':fullname' => $newUsername, 
+                ':password' => $hashedPassword, 
+                ':uid'      => $userId
+            ]);
         } else {
-            // Jika tidak tukar password
-            $stmt = $conn->prepare("UPDATE users SET username = :username WHERE id = :uid");
-            $stmt->execute([':username' => $newUsername, ':uid' => $userId]);
+            $stmt = $conn->prepare("UPDATE users SET fullname = :fullname WHERE id = :uid");
+            
+            $stmt->execute([
+                ':fullname' => $newUsername, 
+                ':uid'      => $userId
+            ]);
         }
 
-        // Redirect kembali ke profil dengan mesej kejayaan
         header("Location: profile.php?status=success");
         exit;
 
@@ -31,3 +38,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         die("Ralat kemaskini: " . $e->getMessage());
     }
 }
+?>

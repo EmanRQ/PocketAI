@@ -1,12 +1,11 @@
 <?php
 require_once 'db.php';
 
-// Pastikan session dimulakan untuk membaca progress dinamik
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Kunci keselamatan
 if (!isset($_SESSION['user_id'])) {
     header("Location: login-form.html");
     exit;
@@ -14,7 +13,6 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId = $_SESSION['user_id'];
 
-// 1. Ambil data user dari database
 $stmtFin = $conn->prepare("SELECT * FROM financials WHERE user_id = :uid");
 $stmtFin->execute([':uid' => $userId]);
 $finData = $stmtFin->fetch(PDO::FETCH_ASSOC);
@@ -23,7 +21,7 @@ $streakCount = $finData ? intval($finData['streak_count']) : 0;
 $totalWins   = $finData ? intval($finData['total_wins'] ?? 0) : 0;
 $xpCount     = $totalWins * 35; 
 
-// 2. Takrifkan senarai Quests (Diambil secara dinamik daripada $_SESSION jika wujud)
+
 $quests = [
     [
         'id' => 'nasi_lemak',

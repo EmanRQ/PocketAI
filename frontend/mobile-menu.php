@@ -1,5 +1,4 @@
 <?php
-// Mengesan nama fail semasa (e.g., index.php atau quests.php)
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 

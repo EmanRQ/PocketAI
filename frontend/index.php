@@ -8,12 +8,17 @@ if (!isset($_SESSION['user_id'])) {
 
 $userId = $_SESSION['user_id'];
 
-// Ambil data kewangan
+$stmtUser = $conn->prepare("SELECT fullname FROM users WHERE id = :id"); 
+$stmtUser->execute([':id' => $userId]);
+$userData = $stmtUser->fetch(PDO::FETCH_ASSOC);
+
+$username = $userData ? htmlspecialchars($userData['fullname']) : 'User';
+
 $stmtFin = $conn->prepare("SELECT * FROM financials WHERE user_id = :uid");
 $stmtFin->execute([':uid' => $userId]);
 $finData = $stmtFin->fetch(PDO::FETCH_ASSOC);
 
-// Ambil senarai transaksi
+
 $stmtTx = $conn->prepare("SELECT * FROM transactions WHERE user_id = :uid ORDER BY id DESC");
 $stmtTx->execute([':uid' => $userId]);
 $transactions = $stmtTx->fetchAll(PDO::FETCH_ASSOC);
@@ -36,21 +41,23 @@ $savingsOffset  = 251.2 - (251.2 * $savingsPct / 100);
 $spendingOffset = 201.0 - (201.0 * $spendingPct / 100);
 $billsOffset    = 150.7 - (150.7 * $billsPct / 100);
 
-if ($spendingPct > 75 || $currentBalance < 100) {
+// ================= LOGIK BARU: 3 LEVEL SAVINGS BUDDY BERDASARKAN BAKI =================
+if ($currentBalance <= 100) {
+
     $buddyAvatar = "💸";
     $buddyTitle = "Money is officially flew away!";
     $buddyClass = "font-bold text-md text-rose-400";
     $buddyDesc = "He can smell that you are running out of money soon. Chill out!";
-} else if ($streakCount > 4) {
+} else if ($currentBalance > 100 && $currentBalance <= 500) {
     $buddyAvatar = "💵";
     $buddyTitle = "Money saved for the better future!";
-    $buddyClass = "font-bold text-md text-amber-400";
-    $buddyDesc = "Your consistent savings streak unlocked ultimate high-tier evolution form!";
-} else {
-    $buddyAvatar = "🤑";
-    $buddyTitle = "Millionaire soon i guess";
     $buddyClass = "font-bold text-md text-slate-200";
     $buddyDesc = "Your savings streak keeps him well fed and content!";
+} else {
+    $buddyAvatar = "🤑";
+    $buddyTitle = "Millionaire soon i guess!";
+    $buddyClass = "font-bold text-md text-amber-400";
+    $buddyDesc = "Your consistent savings streak unlocked ultimate high-tier evolution form!";
 }
 ?>
 
@@ -120,7 +127,9 @@ if ($spendingPct > 75 || $currentBalance < 100) {
         <button onclick="toggleSidebar()" class="lg:hidden p-2 bg-slate-900 border border-slate-800 rounded-xl text-slate-300 hover:text-white">
           <i data-lucide="menu" class="w-5 h-5"></i>
         </button>
-        <span class="text-xs text-slate-400 font-mono hidden md:inline">🔥 Active Session: Secured</span>
+        <span class="text-xs text-slate-300 font-medium hidden md:inline">
+          👋 Welcome back, <span class="text-cyan-400 font-bold"><?php echo $username; ?></span> !
+        </span>
       </div>
       
       <div class="bg-amber-500/10 border border-amber-500/20 px-4 py-1.5 rounded-full flex items-center gap-1.5">
@@ -142,24 +151,33 @@ if ($spendingPct > 75 || $currentBalance < 100) {
               <div class="relative w-44 h-44 flex items-center justify-center mt-3">
                 <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                   <circle cx="50" cy="50" r="40" stroke="#0f172a" stroke-width="6" fill="transparent" />
+                  
                   <circle class="cursor-pointer transition-all duration-300 hover:stroke-[8px]" cx="50" cy="50" r="40" stroke="#10b981" stroke-width="6" fill="transparent" 
                           stroke-dasharray="251.2" stroke-dashoffset="<?php echo $savingsOffset; ?>" stroke-linecap="round"
-                          title="Savings: RM<?php echo number_format($savingsAmount, 2); ?> / RM<?php echo $savingsGoal; ?>" />
+                          title="Savings: RM<?php echo number_format($savingsAmount, 2); ?> / RM<?php echo $savingsGoal; ?>"
+                          onmouseenter="hoverRing('SAVINGS', 'RM <?php echo number_format($savingsAmount, 2); ?>', 'text-emerald-400')"
+                          onmouseleave="exitRing()" />
                   
                   <circle cx="50" cy="50" r="32" stroke="#0f172a" stroke-width="6" fill="transparent" />
+                  
                   <circle class="cursor-pointer transition-all duration-300 hover:stroke-[8px]" cx="50" cy="50" r="32" stroke="#f59e0b" stroke-width="6" fill="transparent" 
                           stroke-dasharray="201" stroke-dashoffset="<?php echo $spendingOffset; ?>" stroke-linecap="round"
-                          title="Used Spending: RM<?php echo number_format($spendingAmount, 2); ?> / RM<?php echo $spendingLimit; ?>" />
+                          title="Used Spending: RM<?php echo number_format($spendingAmount, 2); ?> / RM<?php echo $spendingLimit; ?>"
+                          onmouseenter="hoverRing('SPENDING', 'RM <?php echo number_format($spendingAmount, 2); ?>', 'text-amber-400')"
+                          onmouseleave="exitRing()" />
                   
                   <circle cx="50" cy="50" r="24" stroke="#0f172a" stroke-width="6" fill="transparent" />
+                  
                   <circle class="cursor-pointer transition-all duration-300 hover:stroke-[8px]" cx="50" cy="50" r="24" stroke="#f43f5e" stroke-width="6" fill="transparent" 
                           stroke-dasharray="150.7" stroke-dashoffset="<?php echo $billsOffset; ?>" stroke-linecap="round"
-                          title="Fixed Bills: RM<?php echo number_format($billsAmount, 2); ?> / RM<?php echo $billsLimit; ?>" />
+                          title="Fixed Bills: RM<?php echo number_format($billsAmount, 2); ?> / RM<?php echo $billsLimit; ?>"
+                          onmouseenter="hoverRing('FIXED BILLS', 'RM <?php echo number_format($billsAmount, 2); ?>', 'text-rose-400')"
+                          onmouseleave="exitRing()" />
                 </svg>
                 
-                <div class="absolute text-center bg-[#070b14]/90 px-4 py-2 rounded-2xl border border-slate-800/40">
-                  <p class="text-[9px] text-slate-500 uppercase tracking-widest font-bold">BALANCE</p>
-                  <p class="text-lg font-black tracking-tight <?php echo $currentBalance < 0 ? 'text-rose-500' : 'text-white'; ?>">
+                <div class="absolute text-center bg-[#070b14]/90 px-4 py-2 rounded-2xl border border-slate-800/40 pointer-events-none min-w-[110px]">
+                  <p id="center-label" class="text-[9px] text-slate-500 uppercase tracking-widest font-bold transition-all duration-200">BALANCE</p>
+                  <p id="center-value" class="text-lg font-black tracking-tight transition-all duration-200 <?php echo $currentBalance < 0 ? 'text-rose-500' : 'text-white'; ?>">
                     RM <?php echo number_format($currentBalance, 0); ?>
                   </p>
                 </div>
@@ -171,7 +189,10 @@ if ($spendingPct > 75 || $currentBalance < 100) {
                 <span class="text-[10px] bg-slate-900 border border-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">May 2026</span>
               </div>
 
-              <div class="bg-[#070b14]/50 border border-slate-800/40 p-3 rounded-xl flex items-center justify-between cursor-pointer" title="Nilai Semasa: RM<?php echo number_format($savingsAmount, 2); ?>">
+              <div class="bg-[#070b14]/50 border border-slate-800/40 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-900/40 transition-colors" 
+                   title="Nilai Semasa: RM<?php echo number_format($savingsAmount, 2); ?>"
+                   onmouseenter="hoverRing('SAVINGS', 'RM <?php echo number_format($savingsAmount, 2); ?>', 'text-emerald-400')"
+                   onmouseleave="exitRing()">
                 <div class="flex items-center gap-2.5">
                   <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
                   <div>
@@ -182,7 +203,10 @@ if ($spendingPct > 75 || $currentBalance < 100) {
                 <span class="text-xs font-black text-emerald-400"><?php echo round($savingsPct); ?>%</span>
               </div>
 
-              <div class="bg-[#070b14]/50 border border-slate-800/40 p-3 rounded-xl flex items-center justify-between cursor-pointer" title="Nilai Digunakan: RM<?php echo number_format($spendingAmount, 2); ?>">
+              <div class="bg-[#070b14]/50 border border-slate-800/40 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-900/40 transition-colors" 
+                   title="Nilai Digunakan: RM<?php echo number_format($spendingAmount, 2); ?>"
+                   onmouseenter="hoverRing('SPENDING', 'RM <?php echo number_format($spendingAmount, 2); ?>', 'text-amber-400')"
+                   onmouseleave="exitRing()">
                 <div class="flex items-center gap-2.5">
                   <span class="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
                   <div>
@@ -193,7 +217,10 @@ if ($spendingPct > 75 || $currentBalance < 100) {
                 <span class="text-xs font-black text-amber-400"><?php echo round($spendingPct); ?>%</span>
               </div>
 
-              <div class="bg-[#070b14]/50 border border-slate-800/40 p-3 rounded-xl flex items-center justify-between cursor-pointer" title="Nilai Ditanggung: RM<?php echo number_format($billsAmount, 2); ?>">
+              <div class="bg-[#070b14]/50 border border-slate-800/40 p-3 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-900/40 transition-colors" 
+                   title="Nilai Ditanggung: RM<?php echo number_format($billsAmount, 2); ?>"
+                   onmouseenter="hoverRing('FIXED BILLS', 'RM <?php echo number_format($billsAmount, 2); ?>', 'text-rose-400')"
+                   onmouseleave="exitRing()">
                 <div class="flex items-center gap-2.5">
                   <span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
                   <div>
@@ -251,7 +278,7 @@ if ($spendingPct > 75 || $currentBalance < 100) {
               <div class="absolute inset-0 bg-emerald-500/10 rounded-full blur-xl animate-pulse"></div>
               <span class="text-4xl <?php echo ($buddyAvatar == '💸') ? 'animate-bounce' : ''; ?>"><?php echo $buddyAvatar; ?></span>
             </div>
-            <span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-extrabold px-2 py-0.5 rounded mt-1">LVL 3</span>
+
             <h4 class="<?php echo $buddyClass; ?> mt-4"><?php echo $buddyTitle; ?></h4>
             <p class="text-[11px] text-slate-400 max-w-xs mt-1 leading-relaxed"><?php echo $buddyDesc; ?></p>
           </div>
@@ -290,6 +317,27 @@ if ($spendingPct > 75 || $currentBalance < 100) {
   <script>
     lucide.createIcons();
 
+    const originalLabel = "BALANCE";
+    const originalValue = "RM <?php echo number_format($currentBalance, 0); ?>";
+    const originalColorClass = "<?php echo $currentBalance < 0 ? 'text-rose-500' : 'text-white'; ?>";
+
+    const labelElem = document.getElementById('center-label');
+    const valueElem = document.getElementById('center-value');
+
+    function hoverRing(label, value, textColourClass) {
+        labelElem.innerText = label;
+        valueElem.innerText = value;
+        
+        valueElem.className = `text-lg font-black tracking-tight ${textColourClass} transition-all duration-200`;
+    }
+
+    function exitRing() {
+        labelElem.innerText = originalLabel;
+        valueElem.innerText = originalValue;
+        valueElem.className = `text-lg font-black tracking-tight ${originalColorClass} transition-all duration-200`;
+    }
+    // ==========================================
+
     function toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebar-overlay');
@@ -311,69 +359,76 @@ if ($spendingPct > 75 || $currentBalance < 100) {
       }
     }
   </script>
+
   <div id="ai-chat-container" class="fixed bottom-6 right-6 z-50">
-  <button id="ai-toggle" onclick="toggleChat()" class="bg-gradient-to-tr from-emerald-500 to-cyan-500 p-4 rounded-full shadow-lg hover:scale-105 transition-transform">
-    <i data-lucide="bot" class="w-6 h-6 text-slate-950"></i>
-  </button>
-  
-  <div id="ai-box" class="hidden absolute bottom-16 right-0 w-80 bg-[#0d1527] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
-    <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-[#070b14]">
-      <span class="text-xs font-bold text-white">Pocket AI Advisor</span>
-      <button onclick="toggleChat()" class="text-slate-500"><i data-lucide="x" class="w-4 h-4"></i></button>
-    </div>
-    <div id="chat-messages" class="h-64 overflow-y-auto p-4 space-y-3 custom-scrollbar text-xs">
-      <p class="text-slate-400">Hi! Saya AI coach anda. Apa yang saya boleh bantu dengan bajet hari ini?</p>
-    </div>
-    <div class="p-3 border-t border-slate-800 bg-[#070b14]">
-      <input type="text" id="ai-input" placeholder="Tanya saya..." class="w-full bg-[#0d1527] border border-slate-800 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-cyan-500">
+    <button id="ai-toggle" onclick="toggleChat()" class="bg-gradient-to-tr from-emerald-500 to-cyan-500 w-14 h-14 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center justify-center text-2xl">
+      🤖
+    </button>
+    
+    <div id="ai-box" class="hidden absolute bottom-16 right-0 w-80 bg-[#0d1527] border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-[#070b14]">
+        <span class="text-xs font-bold text-white">Pocket AI Advisor</span>
+        <button onclick="toggleChat()" class="text-slate-500"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div id="chat-messages" class="h-64 overflow-y-auto p-4 space-y-3 custom-scrollbar text-xs">
+        <p class="text-slate-400">Hi! Saya AI coach anda. Apa yang saya boleh bantu dengan bajet hari ini?</p>
+      </div>
+      <div class="p-3 border-t border-slate-800 bg-[#070b14]">
+        <input type="text" id="ai-input" placeholder="Tanya saya..." class="w-full bg-[#0d1527] border border-slate-800 rounded-lg px-3 py-2 text-white text-xs outline-none focus:border-cyan-500">
+      </div>
     </div>
   </div>
-</div>
 
-<script>
-function toggleChat() {
-    const box = document.getElementById('ai-box');
-    box.classList.toggle('hidden');
-}
+  <script>
+  function toggleChat() {
+      const box = document.getElementById('ai-box');
+      box.classList.toggle('hidden');
+  }
 
-const currentBalance = <?php echo json_encode($currentBalance); ?>;
+  const currentBalance = <?php echo json_encode($currentBalance); ?>;
 
-document.getElementById('ai-input').addEventListener('keypress', async function (e) {
-    if (e.key === 'Enter') {
-        const input = e.target.value;
-        const chatBox = document.getElementById('chat-messages');
-        
-        chatBox.innerHTML += `<p class="text-right text-emerald-400">User: ${input}</p>`;
-        e.target.value = '';
+  document.getElementById('ai-input').addEventListener('keypress', async function (e) {
+      if (e.key === 'Enter') {
+          const input = e.target.value;
+          if (!input.trim()) return; 
 
-        try {
-            const response = await fetch('https://foreign-aspects-knit-soft.trycloudflare.com/docs', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: input,
-                    current_balance: currentBalance,
-                    mode: "financial_assistant" // Boleh guna flag ni untuk groupmate anda handle logic
-                })
-            });
-            
-            const data = await response.json();
-            
+          const chatBox = document.getElementById('chat-messages');
+          
+          chatBox.innerHTML += `<p class="text-right text-emerald-400">You: ${input}</p>`;
+          e.target.value = '';
+          chatBox.scrollTop = chatBox.scrollHeight;
 
-            chatBox.innerHTML += `<p class="text-slate-200">AI: ${data.result}</p>`;
-            
+          try {
+          
+              const response = await fetch('proxy_chat.php', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ 
+                      prompt: input,
+                      current_balance: currentBalance,
+                      mode: "financial_assistant"
+                  })
+              });
+              
+              const data = await response.json();
+              
 
-            if(data.needs_refresh) {
-                window.location.reload(); 
-            }
-            
-        } catch (error) {
-            chatBox.innerHTML += `<p class="text-rose-400">Error: AI gagal dihubungi.</p>`;
-        }
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-});
-</script>
-</script>
+              if (data.response) {
+                  chatBox.innerHTML += `<p class="text-slate-200">AI: ${data.response}</p>`;
+              } else {
+                  chatBox.innerHTML += `<p class="text-rose-400">Error: Format data tidak dikenali.</p>`;
+              }
+
+              if(data.needs_refresh) {
+                  window.location.reload(); 
+              }
+              
+          } catch (error) {
+              chatBox.innerHTML += `<p class="text-rose-400">Error: AI gagal dihubungi.</p>`;
+          }
+          chatBox.scrollTop = chatBox.scrollHeight;
+      }
+  });
+  </script>
 </body>
 </html>
