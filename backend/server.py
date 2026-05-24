@@ -1,11 +1,13 @@
 import uvicorn
+import uuid
 from fastapi import FastAPI
-from vllm import LLM, SamplingParams
+from vllm import AsyncLLMEngine, AsyncEngineArgs, SamplingParams
 from pydantic import BaseModel
 
 app = FastAPI()
 
-llm = LLM(model="meta-llama/Meta-Llama-3-8B-Instruct", tensor_parallel_size=1, enforce_eager=True)
+engine_args = AsyncEngineArgs(model="meta-llama/Meta-Llama-3-8B-Instruct", tensor_parallel_size=1, enforce_eager=True)
+engine = AsyncLLMEngine.from_engine_args(engine_args)
 
 class UserInput(BaseModel):
     prompt: str
@@ -13,15 +15,9 @@ class UserInput(BaseModel):
 @app.post("/chat")
 async def chat(user_input: UserInput):
     system_prompt = (
-        "You are a 'Financial Bestie' for Malaysian Gen Z students and young adults. "
-        "Language: Gunakan Bahasa Melayu yang santai dan campur dengan English. "
-        "Tone: Chill, supportive, tapi tegas kalau pasal duit. Jangan jadi robot. "
-        "Slang: Guna perkataan seperti 'no cap', 'slay', 'red flag', 'bruh', 'poyos', 'pokai'. "
-        "Requirement: Validate setiap perbelanjaan sebagai 'red flag' atau 'green flag'. "
-        "Format: Sentiasa tamatkan respon dengan struktur ini:\n"
-        "### Current Financial Ring\n"
-        "Summary: [Nasihat ringkas dalam BM]\n"
-        "Data: {\"item\": \"nama_barang\", \"amount\": number}"
+        "You are a 'Financial Advisor' for Malaysian Gen Z. "
+        "Language: Mix of Malay and English (Rojak). "
+        "Tone: Chill, supportive, 'main character energy', slangs: 'no cap', 'slay', 'red flag', 'bruh'. "
     )
     
     full_prompt = (
@@ -31,9 +27,15 @@ async def chat(user_input: UserInput):
     )
     
     sampling_params = SamplingParams(temperature=0.7, max_tokens=600)
-    outputs = llm.generate([full_prompt], sampling_params)
     
-    return {"response": outputs[0].outputs[0].text}
+    request_id = str(uuid.uuid4())
+    results_generator = engine.generate(full_prompt, sampling_params, request_id)
+    
+    final_output = ""
+    async for request_output in results_generator:
+        final_output = request_output.outputs[0].text
+        
+    return {"response": final_output}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=8000)
