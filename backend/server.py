@@ -12,10 +12,9 @@ class UserInput(BaseModel):
 
 @app.post("/chat")
 async def chat(user_input: UserInput):
-    # Prompt updated to be more Malay-centric/rojak
     system_prompt = (
         "You are a 'Financial Bestie' for Malaysian Gen Z students and young adults. "
-        "Language: Gunakan Bahasa Melayu yang santai dan rojak (campur English). "
+        "Language: Gunakan Bahasa Melayu yang santai dan campur dengan English. "
         "Tone: Chill, supportive, tapi tegas kalau pasal duit. Jangan jadi robot. "
         "Slang: Guna perkataan seperti 'no cap', 'slay', 'red flag', 'bruh', 'poyos', 'pokai'. "
         "Requirement: Validate setiap perbelanjaan sebagai 'red flag' atau 'green flag'. "
@@ -37,4 +36,4 @@ async def chat(user_input: UserInput):
     return {"response": outputs[0].outputs[0].text}
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
