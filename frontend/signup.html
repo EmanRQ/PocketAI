@@ -98,18 +98,30 @@
           body: formData
         });
 
-        const result = await response.json();
-        alert(result.message);
+        // Dapatkan respons mentah dalam bentuk teks dahulu
+        const responseText = await response.text();
 
-        if (result.status === "success") {
-          window.location.href = 'login-form.html';
-        } else {
+        try {
+          // Cuba tukarkan teks respons kepada objek JSON
+          const result = JSON.parse(responseText);
+          alert(result.message);
+
+          if (result.status === "success") {
+            window.location.href = 'login-form.html';
+          } else {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+          }
+        } catch (jsonError) {
+          console.error("Mesej ralat penuh dari PHP server:\n", responseText);
+          alert("Ralat pelayan: Format maklum balas tidak sah (Bukan JSON). Sila semak konsol F12.");
           submitBtn.disabled = false;
           submitBtn.innerHTML = originalText;
         }
+
       } catch (error) {
-        console.error(error);
-        alert("Ralat menghubungi PHP server.");
+        console.error("Ralat rangkaian/fetches:", error);
+        alert("Gagal menghubungi PHP server. Sila periksa sambungan rangkaian.");
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
       }
